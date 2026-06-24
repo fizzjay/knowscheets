@@ -1,0 +1,214 @@
+	private void ToggleRaycastGrab()
+		{
+			this._raycastGrabEnabled = !this._raycastGrabEnabled;
+			bool flag = !this._raycastGrabEnabled;
+			if (flag)
+			{
+				bool flag2 = this._raycastHighlight != null;
+				if (flag2)
+				{
+					Object.Destroy(this._raycastHighlight);
+					this._raycastHighlight = null;
+				}
+				this._raycastHoveredPickup = null;
+			}
+			this.ShowHandMessage(this._raycastGrabEnabled ? "Raycast Grab: ENABLED" : "Raycast Grab: DISABLED");
+			MelonLogger.Msg("[CleanMod] RaycastGrab: " + this._raycastGrabEnabled.ToString());
+		}
+
+		// Token: 0x060000CC RID: 204 RVA: 0x00015CD0 File Offset: 0x00013ED0
+		private void TickRaycastGrab()
+		{
+			bool flag = !this._raycastGrabEnabled;
+			if (!flag)
+			{
+				PlayerController playerController = PlayerController.Current;
+				bool flag2 = playerController == null;
+				if (!flag2)
+				{
+					Camera camera = playerController.Camera ?? Camera.main;
+					bool flag3 = camera == null;
+					if (!flag3)
+					{
+						Mouse current = Mouse.current;
+						bool flag4 = current == null;
+						if (!flag4)
+						{
+							Vector2 vector = current.position.ReadValue();
+							Ray ray = camera.ScreenPointToRay(new Vector3(vector.x, vector.y, 0f));
+							Pickup pickup = null;
+							float num = this._raycastRange;
+							foreach (RaycastHit raycastHit in Physics.RaycastAll(ray, this._raycastRange))
+							{
+								Pickup componentInParent = raycastHit.collider.GetComponentInParent<Pickup>();
+								bool flag5 = componentInParent == null;
+								if (!flag5)
+								{
+									bool flag6 = raycastHit.distance < num;
+									if (flag6)
+									{
+										num = raycastHit.distance;
+										pickup = componentInParent;
+									}
+								}
+							}
+							bool flag7 = pickup == null;
+							if (flag7)
+							{
+								foreach (Pickup pickup2 in Object.FindObjectsOfType<Pickup>())
+								{
+									bool flag8 = pickup2 == null;
+									if (!flag8)
+									{
+										Vector3 vector2 = pickup2.transform.position - ray.origin;
+										float num2 = Vector3.Dot(vector2, ray.direction);
+										bool flag9 = num2 < 0f || num2 > this._raycastRange;
+										if (!flag9)
+										{
+											float magnitude = Vector3.Cross(ray.direction, vector2).magnitude;
+											float magnitude2 = vector2.magnitude;
+											bool flag10 = magnitude < 0.3f && magnitude2 < num;
+											if (flag10)
+											{
+												num = magnitude2;
+												pickup = pickup2;
+											}
+										}
+									}
+								}
+							}
+							this._raycastHoveredPickup = pickup;
+							bool flag11 = pickup != null;
+							if (flag11)
+							{
+								bool flag12 = this._raycastHighlight == null;
+								if (flag12)
+								{
+									this._raycastHighlight = GameObject.CreatePrimitive(0);
+									this._raycastHighlight.name = "CleanMod_RaycastHighlight";
+									Collider component = this._raycastHighlight.GetComponent<Collider>();
+									bool flag13 = component != null;
+									if (flag13)
+									{
+										Object.Destroy(component);
+									}
+									Renderer component2 = this._raycastHighlight.GetComponent<Renderer>();
+									bool flag14 = component2 != null;
+									if (flag14)
+									{
+										Material material = new Material(Shader.Find("Standard"));
+										material.SetFloat("_Mode", 3f);
+										material.SetInt("_SrcBlend", 5);
+										material.SetInt("_DstBlend", 10);
+										material.SetInt("_ZWrite", 0);
+										material.renderQueue = 3000;
+										material.SetColor("_Color", new Color(0.45f, 0.75f, 1f, 0.4f));
+										material.SetFloat("_Metallic", 0f);
+										material.SetFloat("_Glossiness", 0f);
+										component2.material = material;
+									}
+								}
+								float num3 = 0.05f;
+								Renderer componentInChildren = pickup.GetComponentInChildren<Renderer>();
+								bool flag15 = componentInChildren != null;
+								if (flag15)
+								{
+									num3 = Mathf.Clamp(componentInChildren.bounds.extents.magnitude * 0.55f, 0.04f, 0.18f);
+								}
+								this._raycastHighlight.transform.position = pickup.transform.position;
+								this._raycastHighlight.transform.localScale = Vector3.one * num3 * 2f;
+								this._raycastHighlight.SetActive(true);
+								bool flag16 = current.leftButton.wasPressedThisFrame && !this._menuHovered && !this._grabPaused;
+								if (flag16)
+								{
+									Controller rightController = playerController.RightController;
+									Interactor interactor = (rightController != null) ? rightController.Interactor : null;
+									bool flag17 = interactor != null;
+									if (flag17)
+									{
+										try
+										{
+											bool isDocked = pickup.IsDocked;
+											if (isDocked)
+											{
+												pickup.Undock(interactor, true, 1);
+											}
+											interactor.ResetTimeout();
+											bool flag18 = interactor.StartInteract(pickup, false, false, false) != null;
+											if (flag18)
+											{
+												MelonLogger.Msg("[RaycastGrab] Grabbed: " + pickup.name);
+											}
+										}
+										catch (Exception ex)
+										{
+											MelonLogger.Warning("[RaycastGrab] Grab failed: " + ex.Message);
+										}
+									}
+								}
+							}
+							else
+							{
+								bool flag19 = this._raycastHighlight != null;
+								if (flag19)
+								{
+									this._raycastHighlight.SetActive(false);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Token: 0x060000CD RID: 205 RVA: 0x00016178 File Offset: 0x00014378
+		private void TickMouseAim()
+		{
+			bool flag = !this._mouseAimMode || this._mouseAimController == null;
+			if (!flag)
+			{
+				Mouse current = Mouse.current;
+				bool flag2 = current == null;
+				if (!flag2)
+				{
+					Vector2 vector = current.delta.ReadValue();
+					bool flag3 = vector.sqrMagnitude > 0.0001f;
+					if (flag3)
+					{
+						this._mouseAimYaw += vector.x * 0.3f;
+						this._mouseAimPitch = Mathf.Clamp(this._mouseAimPitch - vector.y * 0.3f, -89f, 89f);
+						Transform transform = this._mouseAimController.transform;
+						transform.localRotation = Quaternion.Euler(this._mouseAimPitch, this._mouseAimYaw, 0f);
+						Vector3 localPosition = transform.localPosition;
+						localPosition.x = Mathf.Clamp(localPosition.x + vector.x * 0.0018f, -0.6f, 0.6f);
+						localPosition.y = Mathf.Clamp(localPosition.y + vector.y * 0.0018f, 0.5f, 2.2f);
+						transform.localPosition = localPosition;
+					}
+					bool aButtonForced = CleanMod._aButtonForced;
+					if (aButtonForced)
+					{
+						try
+						{
+							MonoBehaviour qam = this.GetQam();
+							bool flag4 = qam != null;
+							if (flag4)
+							{
+								MethodInfo method = qam.GetType().GetMethod("MarkSelected", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+								bool flag5 = method != null;
+								if (flag5)
+								{
+									Vector3 position = this._mouseAimController.transform.position;
+									method.Invoke(qam, new object[]
+									{
+										position
+									});
+								}
+							}
+						}
+						catch
+						{
+						}
+					}
+				}
+			}
+		}
