@@ -1,0 +1,51 @@
+private void GrabByName(string nameFilter, int limit = 2147483647)
+		{
+			PlayerController playerController = PlayerController.Current;
+			bool flag = playerController == null;
+			if (!flag)
+			{
+				Controller rightController = playerController.RightController;
+				Interactor interactor = (rightController != null) ? rightController.Interactor : null;
+				bool flag2 = interactor == null;
+				if (!flag2)
+				{
+					int num = 0;
+					foreach (GameObject gameObject in Object.FindObjectsOfType<GameObject>())
+					{
+						bool flag3 = num >= limit;
+						if (flag3)
+						{
+							break;
+						}
+						bool flag4 = !string.IsNullOrEmpty(nameFilter) && !gameObject.name.ToLower().Contains(nameFilter.ToLower());
+						if (!flag4)
+						{
+							Pickup component = gameObject.GetComponent<Pickup>();
+							bool flag5 = component == null;
+							if (!flag5)
+							{
+								try
+								{
+									bool isDocked = component.IsDocked;
+									if (isDocked)
+									{
+										component.Undock(interactor, true, 1);
+									}
+									interactor.ResetTimeout();
+									bool flag6 = interactor.StartInteract(component, false, false, false) != null;
+									if (flag6)
+									{
+										num++;
+									}
+								}
+								catch (Exception ex)
+								{
+									MelonLogger.Warning("[GrabByName] " + gameObject.name + " → " + ex.Message);
+								}
+							}
+						}
+					}
+					MelonLogger.Msg(string.Format("[GrabByName] Grabbed {0} items.", num));
+				}
+			}
+		}
