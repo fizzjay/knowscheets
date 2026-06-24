@@ -288,3 +288,212 @@ private void PanKakeSetup()
 				}
 			}
 		}
+
+private void TickWasd()
+		{
+			Keyboard current = Keyboard.current;
+			bool flag = current == null;
+			if (!flag)
+			{
+				bool wasPressedThisFrame = current.backspaceKey.wasPressedThisFrame;
+				if (wasPressedThisFrame)
+				{
+					PlayerController playerController = PlayerController.Current;
+					bool flag2 = playerController != null;
+					if (flag2)
+					{
+						bool flag3 = this._targetHand == CleanMod.TargetHand.Right || this._targetHand == CleanMod.TargetHand.Both;
+						if (flag3)
+						{
+							this.DropFromHand(playerController.RightController);
+						}
+						bool flag4 = this._targetHand == CleanMod.TargetHand.Left || this._targetHand == CleanMod.TargetHand.Both;
+						if (flag4)
+						{
+							this.DropFromHand(playerController.LeftController);
+						}
+					}
+				}
+				Mouse current2 = Mouse.current;
+				bool flag5 = current2 != null;
+				if (flag5)
+				{
+					float y = current2.scroll.ReadValue().y;
+					bool flag6 = Mathf.Abs(y) > 0.01f;
+					if (flag6)
+					{
+						this.ScrollGrab(y);
+					}
+				}
+				PlayerController playerController2 = PlayerController.Current;
+				bool flag7 = playerController2 == null;
+				if (!flag7)
+				{
+					Vector3 vector = Vector3.zero;
+					bool flag8 = current.wKey.isPressed || current.upArrowKey.isPressed;
+					if (flag8)
+					{
+						vector += Vector3.forward;
+					}
+					bool flag9 = current.sKey.isPressed || current.downArrowKey.isPressed;
+					if (flag9)
+					{
+						vector += Vector3.back;
+					}
+					bool flag10 = current.aKey.isPressed || current.leftArrowKey.isPressed;
+					if (flag10)
+					{
+						vector += Vector3.left;
+					}
+					bool flag11 = current.dKey.isPressed || current.rightArrowKey.isPressed;
+					if (flag11)
+					{
+						vector += Vector3.right;
+					}
+					bool isPressed = current.eKey.isPressed;
+					if (isPressed)
+					{
+						vector += Vector3.up;
+					}
+					bool isPressed2 = current.qKey.isPressed;
+					if (isPressed2)
+					{
+						vector += Vector3.down;
+					}
+					bool flag12 = vector.sqrMagnitude < 0.001f;
+					if (!flag12)
+					{
+						vector.Normalize();
+						Camera camera = playerController2.Camera;
+						bool flag13 = camera != null;
+						if (flag13)
+						{
+							Transform transform = camera.transform;
+							Vector3 normalized = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+							Vector3 normalized2 = Vector3.ProjectOnPlane(transform.right, Vector3.up).normalized;
+							vector = normalized * vector.z + normalized2 * vector.x + Vector3.up * vector.y;
+						}
+						float num = current.leftShiftKey.isPressed ? 2.5f : 1f;
+						playerController2.transform.position += vector * this._wasdSpeed * num * Time.deltaTime;
+					}
+				}
+			}
+		}
+
+
+private void ScrollGrab(float scroll)
+		{
+			PlayerController playerController = PlayerController.Current;
+			bool flag = playerController == null;
+			if (!flag)
+			{
+				Controller rightController = playerController.RightController;
+				Interactor interactor = (rightController != null) ? rightController.Interactor : null;
+				bool flag2 = interactor == null;
+				if (!flag2)
+				{
+					try
+					{
+						Collider[] array = Physics.OverlapSphere(rightController.transform.position, 2f);
+						List<Pickup> list = new List<Pickup>();
+						foreach (Collider collider in array)
+						{
+							Pickup componentInParent = collider.GetComponentInParent<Pickup>();
+							bool flag3 = componentInParent != null && !list.Contains(componentInParent);
+							if (flag3)
+							{
+								list.Add(componentInParent);
+							}
+						}
+						bool flag4 = list.Count == 0;
+						if (!flag4)
+						{
+							this.DropFromHand(rightController);
+							this._scrollGrabIndex += ((scroll > 0f) ? 1 : -1);
+							this._scrollGrabIndex = (this._scrollGrabIndex % list.Count + list.Count) % list.Count;
+							Pickup pickup = list[this._scrollGrabIndex];
+							try
+							{
+								bool isDocked = pickup.IsDocked;
+								if (isDocked)
+								{
+									pickup.Undock(interactor, true, 1);
+								}
+								interactor.ResetTimeout();
+								interactor.StartInteract(pickup, false, false, false);
+								MelonLogger.Msg(string.Format("[ScrollGrab] index {0}/{1}: {2}", this._scrollGrabIndex, list.Count - 1, pickup.name));
+							}
+							catch (Exception ex)
+							{
+								MelonLogger.Warning("[ScrollGrab] interact: " + ex.Message);
+							}
+						}
+					}
+					catch (Exception ex2)
+					{
+						MelonLogger.Warning("[ScrollGrab] " + ex2.Message);
+					}
+				}
+			}
+		}
+private void TickMouseScrollHandMove()
+		{
+			Mouse current = Mouse.current;
+			bool flag = current == null;
+			if (!flag)
+			{
+				PlayerController playerController = PlayerController.Current;
+				bool flag2 = playerController == null;
+				if (!flag2)
+				{
+					float y = current.scroll.ReadValue().y;
+					bool flag3 = Mathf.Abs(y) > 0.01f;
+					if (flag3)
+					{
+						this._mouseHandDepth = Mathf.Clamp(this._mouseHandDepth + y * 0.004f, 0.08f, 3f);
+						Camera camera = playerController.Camera ?? Camera.main;
+						bool flag4 = camera == null;
+						if (flag4)
+						{
+							return;
+						}
+						Vector2 vector = current.position.ReadValue();
+						Ray ray = camera.ScreenPointToRay(new Vector3(vector.x, vector.y, 0f));
+						Vector3 vector2 = ray.origin + ray.direction * this._mouseHandDepth;
+						Transform transform = playerController.transform;
+						this._armSmoothTarget = transform.InverseTransformPoint(vector2);
+						this._armSmoothRotTarget = Quaternion.LookRotation(transform.InverseTransformDirection(ray.direction).normalized, Vector3.up);
+						this._mouseHandRayDir = transform.InverseTransformDirection(ray.direction);
+						this._mouseHandTarget = this._armSmoothTarget;
+						this._armSmoothActive = true;
+						this._mouseHandMoving = true;
+					}
+					bool flag5 = !this._armSmoothActive;
+					if (!flag5)
+					{
+						float num = 1f - Mathf.Exp(-this._armSmoothSpeed * Time.deltaTime);
+						foreach (Controller controller in playerController.GetComponentsInChildren<Controller>(true))
+						{
+							string text = controller.name.ToLower();
+							bool flag6 = !this.ShouldTarget(text.Contains("left"), text.Contains("right"));
+							if (!flag6)
+							{
+								Vector3 vector3 = Vector3.Lerp(controller.transform.localPosition, this._armSmoothTarget, num);
+								Quaternion localRotation = Quaternion.Slerp(controller.transform.localRotation, this._armSmoothRotTarget, num);
+								controller.transform.localPosition = vector3;
+								controller.transform.localRotation = localRotation;
+								float num2 = Time.time * 1.1f + (text.Contains("left") ? 1.7f : 0f);
+								float num3 = Mathf.Sin(num2 * 0.8f) * 0.6f;
+								float num4 = Mathf.Cos(num2 * 0.55f) * 0.4f;
+								controller.transform.localRotation *= Quaternion.Euler(num3, 0f, num4);
+								bool flag7 = Vector3.Distance(vector3, this._armSmoothTarget) < 0.003f;
+								if (flag7)
+								{
+									this._armSmoothActive = false;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
