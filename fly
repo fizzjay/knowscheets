@@ -1,0 +1,57 @@
+	private void TickFly()
+		{
+			Keyboard current = Keyboard.current;
+			bool flag = current == null;
+			if (!flag)
+			{
+				PlayerController playerController = PlayerController.Current;
+				bool flag2 = playerController == null;
+				if (!flag2)
+				{
+					bool panKakeMode = this._panKakeMode;
+					if (!panKakeMode)
+					{
+						Transform transform = playerController.transform;
+						float num = this._wasdSpeed * Time.deltaTime;
+						bool isPressed = current.leftShiftKey.isPressed;
+						if (isPressed)
+						{
+							num *= 2.5f;
+						}
+						Camera camera = playerController.Camera;
+						Vector3 vector = (camera != null) ? Vector3.ProjectOnPlane(camera.transform.forward, Vector3.up).normalized : transform.forward;
+						Vector3 vector2 = (camera != null) ? Vector3.ProjectOnPlane(camera.transform.right, Vector3.up).normalized : transform.right;
+						bool isPressed2 = current.wKey.isPressed;
+						if (isPressed2)
+						{
+							transform.position += vector * num;
+						}
+						bool isPressed3 = current.sKey.isPressed;
+						if (isPressed3)
+						{
+							transform.position -= vector * num;
+						}
+						bool isPressed4 = current.aKey.isPressed;
+						if (isPressed4)
+						{
+							transform.position -= vector2 * num;
+						}
+						bool isPressed5 = current.dKey.isPressed;
+						if (isPressed5)
+						{
+							transform.position += vector2 * num;
+						}
+						bool isPressed6 = current.spaceKey.isPressed;
+						if (isPressed6)
+						{
+							transform.position += Vector3.up * num;
+						}
+						bool isPressed7 = current.qKey.isPressed;
+						if (isPressed7)
+						{
+							transform.position -= Vector3.up * num;
+						}
+					}
+				}
+			}
+		}
