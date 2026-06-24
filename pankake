@@ -1,0 +1,290 @@
+private void PanKakeSetup()
+		{
+			PlayerController playerController = PlayerController.Current;
+			bool flag = playerController == null;
+			if (flag)
+			{
+				MelonLogger.Warning("[CleanMod] PanKake: PlayerController null");
+			}
+			else
+			{
+				try
+				{
+					Camera camera = playerController.Camera;
+					Transform transform = (camera != null) ? camera.transform : null;
+					bool flag2 = transform != null;
+					if (flag2)
+					{
+						transform.localPosition = new Vector3(0f, 1.45f, 0f);
+						MelonLogger.Msg("[CleanMod] Camera positioned.");
+					}
+					Controller[] componentsInChildren = playerController.GetComponentsInChildren<Controller>(true);
+					MelonLogger.Msg(string.Format("[CleanMod] Found {0} Controller(s).", componentsInChildren.Length));
+					foreach (Controller controller in componentsInChildren)
+					{
+						string text = controller.name.ToLower();
+						Transform transform2 = controller.transform;
+						bool flag3 = text.Contains("right");
+						if (flag3)
+						{
+							transform2.localPosition = new Vector3(0.195f, 1.3f, 0.25f);
+							transform2.localRotation = Quaternion.Euler(298.5f, 0f, 0f);
+							MelonLogger.Msg("[CleanMod] Right controller positioned.");
+						}
+						else
+						{
+							bool flag4 = text.Contains("left");
+							if (flag4)
+							{
+								transform2.localPosition = new Vector3(-0.195f, 1.3f, 0.25f);
+								transform2.localRotation = Quaternion.Euler(298.5f, 0f, 0f);
+								MelonLogger.Msg("[CleanMod] Left controller positioned.");
+							}
+						}
+					}
+					SmoothLocomotion smoothLocomotion = Object.FindObjectOfType<SmoothLocomotion>();
+					bool flag5 = smoothLocomotion != null;
+					if (flag5)
+					{
+						bool flag6 = !smoothLocomotion.IsDebugMovement;
+						if (flag6)
+						{
+							smoothLocomotion.ToggleDebug();
+						}
+						MelonLogger.Msg(string.Format("[CleanMod] Flight enabled: {0}", smoothLocomotion.IsDebugMovement));
+					}
+					this._panKakeCrouching = false;
+					this._gripActive = false;
+					MelonLogger.Msg("[CleanMod] PanKake setup complete.");
+				}
+				catch (Exception ex)
+				{
+					MelonLogger.Warning("[CleanMod] PanKake setup error: " + ex.Message);
+				}
+			}
+		}
+
+		// Token: 0x0600006C RID: 108 RVA: 0x0000AF00 File Offset: 0x00009100
+		private void PanKakeTeardown()
+		{
+			try
+			{
+				bool mouseAimMode = this._mouseAimMode;
+				if (mouseAimMode)
+				{
+					this._mouseAimMode = false;
+					this.SimulateButtonA(false);
+					bool flag = this._mouseAimController != null;
+					if (flag)
+					{
+						Transform transform = this._mouseAimController.transform;
+						transform.localPosition = this._mouseAimSavedPos;
+						transform.localRotation = this._mouseAimSavedRot;
+					}
+				}
+				bool gripActive = this._gripActive;
+				if (gripActive)
+				{
+					this._gripActive = false;
+					this.ApplyGrip(false);
+				}
+				PlayerController playerController = PlayerController.Current;
+				bool flag2 = playerController != null;
+				if (flag2)
+				{
+					playerController.transform.localEulerAngles = Vector3.zero;
+				}
+				SmoothLocomotion smoothLocomotion = Object.FindObjectOfType<SmoothLocomotion>();
+				bool flag3 = smoothLocomotion != null && smoothLocomotion.IsDebugMovement;
+				if (flag3)
+				{
+					smoothLocomotion.ToggleDebug();
+				}
+				this._panKakeCrouching = false;
+			}
+			catch (Exception ex)
+			{
+				MelonLogger.Warning("[CleanMod] PanKake teardown error: " + ex.Message);
+			}
+		}
+
+		// Token: 0x0600006D RID: 109 RVA: 0x0000AFFC File Offset: 0x000091FC
+		private void TickPanKake()
+		{
+			PlayerController playerController = PlayerController.Current;
+			bool flag = playerController == null;
+			if (!flag)
+			{
+				Keyboard current = Keyboard.current;
+				Mouse current2 = Mouse.current;
+				Transform transform = playerController.transform;
+				bool flag2 = this._handFollowMouse && current2 != null && !this._handFrozen;
+				if (flag2)
+				{
+					Vector2 vector = current2.delta.ReadValue();
+					foreach (Controller controller in playerController.GetComponentsInChildren<Controller>(true))
+					{
+						string text = controller.name.ToLower();
+						bool flag3 = !this.ShouldTarget(text.Contains("left"), text.Contains("right"));
+						if (!flag3)
+						{
+							Vector3 localPosition = controller.transform.localPosition;
+							localPosition.x += vector.x * 0.002f;
+							localPosition.y += vector.y * 0.002f;
+							controller.transform.localPosition = localPosition;
+						}
+					}
+				}
+				try
+				{
+					bool flag4 = !this._climbFlyEnabled && current != null;
+					if (flag4)
+					{
+						float num = this._panKakeMoveSpeed * Time.deltaTime;
+						bool flag5 = current.leftShiftKey.isPressed || current.rightShiftKey.isPressed;
+						if (flag5)
+						{
+							num *= this._panKakeSprintMult;
+						}
+						bool flag6 = current.aKey.isPressed || current.leftArrowKey.isPressed;
+						if (flag6)
+						{
+							transform.position += transform.right * -num;
+						}
+						bool flag7 = current.dKey.isPressed || current.rightArrowKey.isPressed;
+						if (flag7)
+						{
+							transform.position += transform.right * num;
+						}
+						bool flag8 = current.wKey.isPressed || current.upArrowKey.isPressed;
+						if (flag8)
+						{
+							transform.position += transform.forward * num;
+						}
+						bool flag9 = current.sKey.isPressed || current.downArrowKey.isPressed;
+						if (flag9)
+						{
+							transform.position += transform.forward * -num;
+						}
+						bool flag10 = current.spaceKey.isPressed || current.eKey.isPressed;
+						if (flag10)
+						{
+							transform.position += Vector3.up * num;
+						}
+						bool isPressed = current.qKey.isPressed;
+						if (isPressed)
+						{
+							transform.position += Vector3.up * -num;
+						}
+						bool wasPressedThisFrame = current.leftCtrlKey.wasPressedThisFrame;
+						if (wasPressedThisFrame)
+						{
+							this.PanKakeToggleCrouch(playerController);
+						}
+						bool flag11 = false;
+						bool flag12 = false;
+						try
+						{
+							flag11 = current.numpadPlusKey.isPressed;
+							flag12 = current.numpadMinusKey.isPressed;
+						}
+						catch
+						{
+						}
+						try
+						{
+							bool flag13 = !flag11;
+							if (flag13)
+							{
+								flag11 = current.equalsKey.isPressed;
+							}
+							bool flag14 = !flag12;
+							if (flag14)
+							{
+								flag12 = current.minusKey.isPressed;
+							}
+						}
+						catch
+						{
+						}
+						bool flag15 = (flag11 || flag12) && !this._handFrozen;
+						if (flag15)
+						{
+							this.SlideHandForward(playerController, (flag11 ? 1f : -1f) * 0.6f * Time.deltaTime);
+						}
+					}
+					else
+					{
+						bool flag16 = current != null;
+						if (flag16)
+						{
+							bool flag17 = false;
+							bool flag18 = false;
+							try
+							{
+								flag17 = current.numpadPlusKey.isPressed;
+								flag18 = current.numpadMinusKey.isPressed;
+							}
+							catch
+							{
+							}
+							try
+							{
+								bool flag19 = !flag17;
+								if (flag19)
+								{
+									flag17 = current.equalsKey.isPressed;
+								}
+								bool flag20 = !flag18;
+								if (flag20)
+								{
+									flag18 = current.minusKey.isPressed;
+								}
+							}
+							catch
+							{
+							}
+							bool flag21 = (flag17 || flag18) && !this._handFrozen;
+							if (flag21)
+							{
+								this.SlideHandForward(playerController, (flag17 ? 1f : -1f) * 0.6f * Time.deltaTime);
+							}
+						}
+					}
+					bool flag22 = current2 != null && current2.rightButton.isPressed;
+					if (flag22)
+					{
+						Vector2 vector2 = current2.delta.ReadValue();
+						bool rotateWholeBody = this._rotateWholeBody;
+						if (rotateWholeBody)
+						{
+							CleanMod.PanKakeRotateWholeBody(playerController, vector2);
+						}
+						else
+						{
+							CleanMod.PanKakeRotateCameraOnly(playerController, vector2);
+						}
+						bool flag23 = this._mouseHandControl && !this._handFrozen;
+						if (flag23)
+						{
+							foreach (Controller controller2 in playerController.GetComponentsInChildren<Controller>(true))
+							{
+								string text2 = controller2.name.ToLower();
+								bool flag24 = !this.ShouldTarget(text2.Contains("left"), text2.Contains("right"));
+								if (!flag24)
+								{
+									Vector3 localPosition2 = controller2.transform.localPosition;
+									localPosition2.x += vector2.x * 0.0025f;
+									localPosition2.y += vector2.y * 0.0025f;
+									controller2.transform.localPosition = localPosition2;
+								}
+							}
+						}
+					}
+				}
+				catch (Exception ex)
+				{
+					MelonLogger.Warning("[CleanMod] TickPanKake error: " + ex.Message);
+				}
+			}
+		}
