@@ -1,0 +1,240 @@
+private void ComputeMapTransform()
+		{
+			float x = this._mapRefA.x;
+			float y = this._mapRefA.y;
+			float x2 = this._mapRefB.x;
+			float y2 = this._mapRefB.y;
+			float x3 = this._mapRefC.x;
+			float y3 = this._mapRefC.y;
+			float num = x * (y2 - y3) - y * (x2 - x3) + (x2 * y3 - y2 * x3);
+			bool flag = Mathf.Abs(num) < 1E-06f;
+			if (flag)
+			{
+				this._mapTransformReady = false;
+			}
+			else
+			{
+				float num2 = 1f / num;
+				float num3 = (y2 - y3) * num2;
+				float num4 = -(y - y3) * num2;
+				float num5 = (y - y2) * num2;
+				float num6 = -(x2 - x3) * num2;
+				float num7 = (x - x3) * num2;
+				float num8 = -(x - x2) * num2;
+				float num9 = (x2 * y3 - y2 * x3) * num2;
+				float num10 = -(x * y3 - y * x3) * num2;
+				float num11 = (x * y2 - y * x2) * num2;
+				float x4 = this._worldRefA.x;
+				float x5 = this._worldRefB.x;
+				float x6 = this._worldRefC.x;
+				float y4 = this._worldRefA.y;
+				float y5 = this._worldRefB.y;
+				float y6 = this._worldRefC.y;
+				Vector3 vector;
+				vector..ctor(num3 * x4 + num4 * x5 + num5 * x6, num6 * x4 + num7 * x5 + num8 * x6, num9 * x4 + num10 * x5 + num11 * x6);
+				Vector3 vector2;
+				vector2..ctor(num3 * y4 + num4 * y5 + num5 * y6, num6 * y4 + num7 * y5 + num8 * y6, num9 * y4 + num10 * y5 + num11 * y6);
+				this._mapTransform = Matrix4x4.identity;
+				this._mapTransform.SetRow(0, new Vector4(vector.x, vector.y, vector.z, 0f));
+				this._mapTransform.SetRow(1, new Vector4(vector2.x, vector2.y, vector2.z, 0f));
+				this._mapTransformReady = true;
+				MelonLogger.Msg("[MiniMap] Transform computed.");
+			}
+		}
+
+		// Token: 0x06000070 RID: 112 RVA: 0x0000B870 File Offset: 0x00009A70
+		private Vector3 MapToWorld3Point(Vector3 localClick)
+		{
+			Vector3 vector;
+			vector..ctor(localClick.x, localClick.y, 1f);
+			Vector4 row = this._mapTransform.GetRow(0);
+			Vector4 row2 = this._mapTransform.GetRow(1);
+			float num = row.x * vector.x + row.y * vector.y + row.z * vector.z;
+			float num2 = row2.x * vector.x + row2.y * vector.y + row2.z * vector.z;
+			return new Vector3(num, 300f, num2);
+		}
+
+		// Token: 0x06000071 RID: 113 RVA: 0x0000B918 File Offset: 0x00009B18
+		private void TeleportToHighestPoint(Vector3 worldPos)
+		{
+			RaycastHit raycastHit;
+			bool flag = Physics.Raycast(new Ray(new Vector3(worldPos.x, 2000f, worldPos.z), Vector3.down), ref raycastHit, 5000f, -1, 1);
+			if (flag)
+			{
+				Vector3 vector = raycastHit.point + Vector3.up * 1f;
+				CleanMod.TeleportPlayer(vector);
+				MelonLogger.Msg(string.Format("[MiniMap] Teleported to {0}", vector));
+			}
+			else
+			{
+				CleanMod.TeleportPlayer(new Vector3(worldPos.x, 300f, worldPos.z));
+				MelonLogger.Msg("[MiniMap] No surface found, used fallback height.");
+			}
+		}
+
+		// Token: 0x06000072 RID: 114 RVA: 0x0000B9C0 File Offset: 0x00009BC0
+		private void ToggleMiniMap()
+		{
+			bool flag = this._boardClone == null;
+			if (flag)
+			{
+				PlayerController playerController = PlayerController.Current;
+				bool flag2 = playerController == null;
+				if (flag2)
+				{
+					return;
+				}
+				Camera camera = playerController.Camera;
+				bool flag3 = camera == null;
+				if (flag3)
+				{
+					return;
+				}
+				GameObject gameObject = Resources.FindObjectsOfTypeAll<GameObject>().FirstOrDefault((GameObject g) => g != null && g.name == "Map Board");
+				bool flag4 = gameObject == null;
+				if (flag4)
+				{
+					MelonLogger.Warning("[MiniMap] Map Board prefab not found.");
+					return;
+				}
+				this._boardClone = Object.Instantiate<GameObject>(gameObject, camera.transform);
+				this._boardClone.name = "Minimap";
+				Object.DontDestroyOnLoad(this._boardClone);
+				this._boardClone.transform.localPosition = this._minimapOffset;
+				this._boardClone.transform.localRotation = Quaternion.identity;
+				this._boardClone.transform.localScale = this._minimapScale;
+				Transform transform = this._boardClone.GetComponentsInChildren<Transform>(true).FirstOrDefault((Transform t) => t.name.IndexOf("Hand Touch", StringComparison.OrdinalIgnoreCase) >= 0);
+				bool flag5 = transform != null;
+				if (flag5)
+				{
+					Object.Destroy(transform.gameObject);
+				}
+				foreach (Component component in this._boardClone.GetComponents<Component>())
+				{
+					bool flag6 = component == null;
+					if (!flag6)
+					{
+						string name = component.GetType().Name;
+						bool flag7 = name == "NetworkEntity" || name == "NetworkPrefab";
+						if (flag7)
+						{
+							Object.DestroyImmediate(component);
+						}
+					}
+				}
+				MapBoard component2 = this._boardClone.GetComponent<MapBoard>();
+				MapLandmarkDisplay component3 = this._boardClone.GetComponent<MapLandmarkDisplay>();
+				MethodInfo methodInfo = AccessTools.Method(typeof(MapLandmarkDisplay), "Setup", null, null);
+				bool flag8 = component2 == null || component3 == null || methodInfo == null;
+				if (flag8)
+				{
+					MelonLogger.Warning("[MiniMap] Missing MapBoard or MapLandmarkDisplay.");
+					return;
+				}
+				FieldInfo fieldInfo = AccessTools.Field(typeof(MapBoard), "zoom");
+				if (fieldInfo != null)
+				{
+					fieldInfo.SetValue(component2, 1f);
+				}
+				FieldInfo fieldInfo2 = AccessTools.Field(typeof(MapBoard), "syncBoard");
+				if (fieldInfo2 != null)
+				{
+					fieldInfo2.SetValue(component2, null);
+				}
+				FieldInfo fieldInfo3 = AccessTools.Field(typeof(MapBoard), "positionOffset");
+				if (fieldInfo3 != null)
+				{
+					fieldInfo3.SetValue(component2, Vector2.zero);
+				}
+				try
+				{
+					MethodInfo methodInfo2 = AccessTools.Method(typeof(MapBoard), "SetupAsClient", null, null);
+					if (methodInfo2 != null)
+					{
+						methodInfo2.Invoke(component2, null);
+					}
+				}
+				catch
+				{
+					MelonLogger.Warning("[MiniMap] SetupAsClient failed.");
+				}
+				methodInfo.Invoke(component3, new object[]
+				{
+					component2
+				});
+				bool flag9 = this._minimapOutline == null;
+				if (flag9)
+				{
+					this._minimapOutline = GameObject.CreatePrimitive(5);
+					this._minimapOutline.name = "Minimap Outline";
+					this._minimapOutline.transform.SetParent(this._boardClone.transform, false);
+					this._minimapOutline.transform.localPosition = this._outlineOffset;
+					this._minimapOutline.transform.localRotation = Quaternion.identity;
+					this._minimapOutline.transform.localScale = new Vector3(this._outlineWidth, this._outlineHeight, 1f);
+					Renderer component4 = this._minimapOutline.GetComponent<Renderer>();
+					bool flag10 = component4 != null;
+					if (flag10)
+					{
+						component4.material = new Material(Shader.Find("Unlit/Color"))
+						{
+							color = new Color32(33, 33, 33, byte.MaxValue)
+						};
+					}
+				}
+				this.ComputeMapTransform();
+				MelonLogger.Msg("[MiniMap] Minimap spawned.");
+			}
+			this._minimapVisible = !this._minimapVisible;
+			bool minimapVisible = this._minimapVisible;
+			if (minimapVisible)
+			{
+				this._boardClone.transform.localPosition = this._minimapOffset;
+				this._boardClone.transform.localScale = this._minimapScale;
+				this._boardClone.SetActive(true);
+			}
+			else
+			{
+				this._boardClone.transform.localPosition = this._boardHiddenPos;
+				this._boardClone.SetActive(false);
+			}
+		}
+
+		// Token: 0x06000073 RID: 115 RVA: 0x0000BE3C File Offset: 0x0000A03C
+		private void Minimap_Tick()
+		{
+			bool flag = !this._minimapVisible || this._boardClone == null || !this._boardClone.activeInHierarchy;
+			if (!flag)
+			{
+				Mouse current = Mouse.current;
+				bool flag2 = current == null || !current.leftButton.wasPressedThisFrame;
+				if (!flag2)
+				{
+					PlayerController playerController = PlayerController.Current;
+					bool flag3 = playerController == null;
+					if (!flag3)
+					{
+						Camera camera = playerController.Camera;
+						bool flag4 = camera == null;
+						if (!flag4)
+						{
+							bool flag5 = !this._mapTransformReady;
+							if (flag5)
+							{
+								MelonLogger.Warning("[MiniMap] Click ignored: transform not ready.");
+							}
+							else
+							{
+								RaycastHit raycastHit;
+								bool flag6 = Physics.Raycast(camera.ScreenPointToRay(current.position.ReadValue()), ref raycastHit, 200f, -1, 2) && raycastHit.transform != null && raycastHit.transform.IsChildOf(this._boardClone.transform);
+								if (flag6)
+								{
+									Vector3 localClick = this._boardClone.transform.InverseTransformPoint(raycastHit.point);
+									Vector3 worldPos = this.MapToWorld3Point(localClick);
+									this.TeleportToHighestPoint(worldPos);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
