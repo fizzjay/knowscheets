@@ -1,0 +1,26 @@
+	private void SendConsoleCmd(string cmd)
+		{
+			RuntimeConsole runtimeConsole = Resources.FindObjectsOfTypeAll<RuntimeConsole>().FirstOrDefault<RuntimeConsole>();
+			bool flag = (Object)runtimeConsole == null;
+			if (flag)
+			{
+				MelonLogger.Warning("[PrefabLoader] RuntimeConsole not found.");
+			}
+			else
+			{
+				MethodInfo method = runtimeConsole.GetType().GetMethod("RunCommandOnServer", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+				bool flag2 = method == null;
+				if (flag2)
+				{
+					MelonLogger.Warning("[PrefabLoader] RunCommandOnServer not found.");
+				}
+				else
+				{
+					method.Invoke(runtimeConsole, new object[]
+					{
+						cmd
+					});
+					MelonLogger.Msg("[PrefabLoader] " + cmd);
+				}
+			}
+		}
