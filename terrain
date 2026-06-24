@@ -1,0 +1,8 @@
+		private void ToggleTerrain()
+		{
+			bool flag = MasterTerrain.Instance != null;
+			if (flag)
+			{
+				MasterTerrain.Instance.IsActive = !MasterTerrain.Instance.IsActive;
+			}
+		}
