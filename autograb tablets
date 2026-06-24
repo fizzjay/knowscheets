@@ -1,0 +1,111 @@
+private void TickAutoGrabTablet()
+		{
+			bool flag = !this._autoGrabTablet;
+			if (!flag)
+			{
+				bool flag2 = Time.time - this._lastTabletGrabTime < 0.25f;
+				if (!flag2)
+				{
+					this._lastTabletGrabTime = Time.time;
+					PlayerController playerController = PlayerController.Current;
+					bool flag3 = playerController == null;
+					if (!flag3)
+					{
+						Controller rightController = playerController.RightController;
+						Interactor interactor = (rightController != null) ? rightController.Interactor : null;
+						bool flag4 = interactor == null;
+						if (!flag4)
+						{
+							foreach (Pickup pickup in Object.FindObjectsOfType<Pickup>())
+							{
+								bool flag5 = pickup == null;
+								if (!flag5)
+								{
+									string text = pickup.name.ToLower();
+									bool flag6 = !text.Contains("tablet");
+									if (!flag6)
+									{
+										try
+										{
+											Controller rightController2 = playerController.RightController;
+											object obj;
+											if (rightController2 == null)
+											{
+												obj = null;
+											}
+											else
+											{
+												Interactor interactor2 = rightController2.Interactor;
+												if (interactor2 == null)
+												{
+													obj = null;
+												}
+												else
+												{
+													PropertyInfo propertyInfo = interactor2.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).FirstOrDefault((PropertyInfo p) => p.Name.Contains("Interactable") || p.Name.Contains("Current") || p.Name.Contains("Held") || p.Name.Contains("Item"));
+													obj = ((propertyInfo != null) ? propertyInfo.GetValue(playerController.RightController.Interactor) : null);
+												}
+											}
+											object obj2 = obj;
+											bool flag7 = obj2 != null && obj2 == pickup;
+											if (flag7)
+											{
+												goto IL_279;
+											}
+										}
+										catch
+										{
+										}
+										try
+										{
+											foreach (Interactor interactor3 in Object.FindObjectsOfType<Interactor>())
+											{
+												bool flag8 = interactor3 == null;
+												if (!flag8)
+												{
+													bool flag9 = interactor3 == interactor;
+													if (!flag9)
+													{
+														try
+														{
+															PropertyInfo propertyInfo2 = interactor3.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).FirstOrDefault((PropertyInfo p) => p.Name.Contains("Interactable") || p.Name.Contains("Current") || p.Name.Contains("Held") || p.Name.Contains("Item"));
+															object obj3 = (propertyInfo2 != null) ? propertyInfo2.GetValue(interactor3) : null;
+															bool flag10 = obj3 != null && obj3 == pickup;
+															if (flag10)
+															{
+																interactor3.StopInteract(false, false);
+																MelonLogger.Msg("[CleanMod] AutoGrabTablet: force-dropped from other interactor");
+															}
+														}
+														catch
+														{
+														}
+													}
+												}
+											}
+											bool isDocked = pickup.IsDocked;
+											if (isDocked)
+											{
+												pickup.Undock(interactor, true, 1);
+											}
+											interactor.ResetTimeout();
+											bool flag11 = interactor.StartInteract(pickup, false, false, false) != null;
+											if (flag11)
+											{
+												MelonLogger.Msg("[CleanMod] AutoGrabTablet: grabbed " + pickup.name);
+												break;
+											}
+										}
+										catch (Exception ex)
+										{
+											MelonLogger.Warning("[CleanMod] AutoGrabTablet: " + ex.Message);
+										}
+									}
+								}
+								IL_279:;
+							}
+						}
+					}
+				}
+			}
+		}
