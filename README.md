@@ -1,4 +1,4 @@
-# Cheat fixes:
+# Cheat solution ideas:
 ### terrain
 Check if player position is below map position, if true, teleport player back.
 ### Any grab all/far grabbing script ('grabing by name', 'raycast grab', 'puppeteer')
